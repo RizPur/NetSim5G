@@ -3,37 +3,49 @@ package main
 import (
 	"fmt"
 
+	"github.com/rizpur/NetSim5G/internal/ran"
 	"github.com/rizpur/NetSim5G/internal/ue"
 )
 
 func main() {
-	pointer_example()
-}
+	// Create gNodeB
+	gnb, err := ran.NewGNodeB("gNB-001", 3)
+	if err != nil {
+		panic(err)
+	}
 
-func pointer_example() {
-	// Scenario 1: Using a VALUE (no pointer)
-	ue3 := ue.UE{IMSI: "789", State: ue.Disconnected}
-	fmt.Printf("Before connectUE_WithValue: %s\n", ue3.State)
-	connectUE_WithValue(ue3)
-	fmt.Printf("After connectUE_WithValue: %s (unchanged!)\n", ue3.State)
+	// Create UEs
+	ue1 := ue.NewUE("123456789012345") // Allowed, pointer returned
+	ue2 := ue.NewUE("999999999999999") // Not allowed
+	ue3 := ue.NewUE("00")
+	ue4 := ue.NewUE("01")
+	ue5 := ue.NewUE("11")
 
-	// Scenario 2: Using a POINTER
-	ue4 := &ue.UE{IMSI: "999", State: ue.Disconnected}
-	fmt.Printf("\nBefore connectUE_WithPointer: %s\n", ue4.State)
-	connectUE_WithPointer(ue4)
-	fmt.Printf("After connectUE_WithPointer: %s (changed!)\n", ue4.State)
-}
+	// Try connecting
+	if err := gnb.ConnectUE(ue1); err != nil { // First do this; then check this, if err:= gnb.ConnectUE(ue1); err != nil {ue didnt connect}
+		fmt.Println("UE1 failed:", err)
+	} else {
+		fmt.Println("UE1 connected! State:", ue1.State)
+	}
 
-// Scenario 1: Using a VALUE (no pointer)
-func connectUE_WithValue(u ue.UE) {
-	u.State = ue.Connected // Changes the COPY
-	u.GNodeBConnected = 1  // Changes the COPY
-	fmt.Println("  Inside function, changed state to:", u.State)
-}
+	if err := gnb.ConnectUE(ue2); err != nil {
+		fmt.Println("UE2 failed:", err)
+	}
 
-// Scenario 2: Using a POINTER
-func connectUE_WithPointer(u *ue.UE) {
-	u.State = ue.Connected // Changes the ORIGINAL
-	u.GNodeBConnected = 1  // Changes the ORIGINAL
-	fmt.Println("  Inside function, changed state to:", u.State)
+	if err := gnb.ConnectUE(ue3); err != nil {
+		fmt.Println("UE3 failed to connect", err)
+	}
+
+	if err := gnb.ConnectUE(ue4); err != nil {
+		fmt.Println("UE4 failed to connect", err)
+	}
+
+	if err := gnb.Disconnect(ue4); err != nil {
+		fmt.Println("UE4 failed to disconnect", err)
+	}
+
+	if err := gnb.ConnectUE(ue5); err != nil {
+		fmt.Println("UE5 failed", err)
+	}
+
 }
