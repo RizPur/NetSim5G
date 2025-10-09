@@ -4,6 +4,7 @@ import "fmt"
 
 type UE struct {
 	IMSI            string
+	X, Y            float64
 	GNodeBConnected int
 	State           UEState
 }

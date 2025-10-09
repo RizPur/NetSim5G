@@ -1,0 +1,22 @@
+{
+  "subscribers": [
+    {
+      "imsi": "123456789012345",
+      "phone_number": "+33 6 55 50 00 10",
+      "subscription_status": "active",
+      "max_data_rate": 100
+    },
+    {
+      "imsi": "987654321098765",
+      "phone_number": "+33 6 50 40 30 20",
+      "subscription_status": "active",
+      "max_data_rate": 50
+    },
+    {
+      "imsi": "111222333444555",
+      "phone_number": "+33 7 10 20 30 40",
+      "subscription_status": "suspended",
+      "max_data_rate": 25
+    }
+  ]
+}

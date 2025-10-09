@@ -11,6 +11,8 @@ import (
 
 type GNodeB struct {
 	ID           string
+	X, Y         float64
+	Range        float64
 	MaxCap       int
 	AllowedIMSIs map[string]bool
 	ConnectedUEs map[string]*ue.UE

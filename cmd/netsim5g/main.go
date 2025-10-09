@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/rizpur/NetSim5G/internal/core/udm"
 	"github.com/rizpur/NetSim5G/internal/ran"
 	"github.com/rizpur/NetSim5G/internal/ue"
 )
@@ -46,6 +47,18 @@ func main() {
 
 	if err := gnb.ConnectUE(ue5); err != nil {
 		fmt.Println("UE5 failed", err)
+	}
+
+	udm, err := udm.NewUDM()
+	if err != nil {
+		panic(err)
+	}
+
+	sub, err := udm.GetSubscriber("123456789012345")
+	if err != nil {
+		fmt.Println("Subscriber not found:", err)
+	} else {
+		fmt.Printf("Found: %s, Status: %s\n", sub.PhoneNumber, sub.SubscriptionStatus)
 	}
 
 }
