@@ -29,11 +29,11 @@ func main() {
 	fmt.Println("✓ SMF initialized")
 
 	// Step 4: Create gNodeB (needs AMF)
-	gnb, err := ran.NewGNodeB("gNB-001", 3, amfInstance)
+	gnb, err := ran.NewGNodeB(3, amfInstance)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("✓ gNodeB initialized")
+	fmt.Printf("✓ gNodeB-%d initialized\n", gnb.ID)
 
 	fmt.Println("\n=== Testing Full Flow: Connect → Register → Establish Session ===")
 
@@ -111,7 +111,7 @@ func main() {
 
 	fmt.Printf("\nAMF Registered UEs: %d\n", len(amfInstance.RegisteredUEs))
 	for imsi, regUE := range amfInstance.RegisteredUEs {
-		fmt.Printf("  - IMSI: %s, gNodeB: %s\n", imsi, regUE.GNodeBID)
+		fmt.Printf("  - IMSI: %s, gNodeB: %d\n", imsi, regUE.GNodeBID)
 	}
 
 	fmt.Printf("\nSMF Active Sessions: %d\n", len(smfInstance.Sessions))

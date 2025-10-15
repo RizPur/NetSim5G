@@ -9,7 +9,7 @@ import (
 
 type RegisteredUE struct {
 	IMSI      string
-	GNodeBID  string
+	GNodeBID  int
 	Timestamp time.Time
 }
 
@@ -25,7 +25,7 @@ func NewAMF(udm *udm.UDM) *AMF {
 	}
 }
 
-func (a *AMF) RegisterUE(imsi string, gnbID string) error {
+func (a *AMF) RegisterUE(imsi string, gnbID int) error {
 	// Check with UDM if subscriber exists / l'abonné existe ?
 	subscriber, err := a.udm.GetSubscriber(imsi)
 	if err != nil {

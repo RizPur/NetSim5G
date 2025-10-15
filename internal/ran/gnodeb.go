@@ -10,8 +10,11 @@ import (
 	"github.com/rizpur/NetSim5G/internal/ue"
 )
 
+// Package-level variable to track next gNodeB ID
+var nextGNodeBID = 1
+
 type GNodeB struct {
-	ID           string
+	ID           int
 	X, Y         float64
 	Range        float64
 	MaxCap       int
@@ -53,7 +56,11 @@ func (g *GNodeB) Disconnect(u *ue.UE) error {
 	return nil
 }
 
-func NewGNodeB(ID string, MaxCap int, amf *amf.AMF) (*GNodeB, error) {
+func NewGNodeB(MaxCap int, amf *amf.AMF) (*GNodeB, error) {
+	// Get the current ID and increment for next gNodeB
+	id := nextGNodeBID
+	nextGNodeBID++
+
 	allowedIMSIs := make(map[string]bool)
 
 	file, err := os.Open("internal/configs/allowed_imsis.txt") // returns file AND an err
@@ -75,7 +82,7 @@ func NewGNodeB(ID string, MaxCap int, amf *amf.AMF) (*GNodeB, error) {
 	}
 
 	return &GNodeB{
-		ID:           ID,
+		ID:           id,
 		MaxCap:       MaxCap,
 		AllowedIMSIs: allowedIMSIs,
 		ConnectedUEs: make(map[string]*ue.UE),
