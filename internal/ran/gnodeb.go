@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rizpur/NetSim5G/internal/core/amf"
 	"github.com/rizpur/NetSim5G/internal/ue"
 )
 
@@ -16,6 +17,7 @@ type GNodeB struct {
 	MaxCap       int
 	AllowedIMSIs map[string]bool
 	ConnectedUEs map[string]*ue.UE
+	amf          *amf.AMF // Reference to AMF for registration
 }
 
 func (g *GNodeB) ConnectUE(u *ue.UE) error {
@@ -27,8 +29,18 @@ func (g *GNodeB) ConnectUE(u *ue.UE) error {
 		return fmt.Errorf("UE not allowed to connect")
 	}
 
+	// Radio connection successful
 	u.State = ue.Connected
-	g.ConnectedUEs[u.IMSI] = u //i want the imsi to = u pointer address
+	g.ConnectedUEs[u.IMSI] = u
+
+	// Try to register with AMF (core network)
+	if err := g.amf.RegisterUE(u.IMSI, g.ID); err != nil {
+		// Registration failed - rollback the radio connection
+		delete(g.ConnectedUEs, u.IMSI)
+		u.State = ue.Disconnected
+		return fmt.Errorf("AMF registration failed: %w", err)
+	}
+
 	return nil
 }
 
@@ -41,7 +53,7 @@ func (g *GNodeB) Disconnect(u *ue.UE) error {
 	return nil
 }
 
-func NewGNodeB(ID string, MaxCap int) (*GNodeB, error) {
+func NewGNodeB(ID string, MaxCap int, amf *amf.AMF) (*GNodeB, error) {
 	allowedIMSIs := make(map[string]bool)
 
 	file, err := os.Open("internal/configs/allowed_imsis.txt") // returns file AND an err
@@ -67,5 +79,6 @@ func NewGNodeB(ID string, MaxCap int) (*GNodeB, error) {
 		MaxCap:       MaxCap,
 		AllowedIMSIs: allowedIMSIs,
 		ConnectedUEs: make(map[string]*ue.UE),
+		amf:          amf,
 	}, nil
 }
