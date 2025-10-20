@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rizpur/NetSim5G/internal/core/amf"
 	"github.com/rizpur/NetSim5G/internal/ue"
 )
 
@@ -20,7 +19,6 @@ type GNodeB struct {
 	MaxCap       int
 	AllowedIMSIs map[string]bool
 	ConnectedUEs map[string]*ue.UE
-	amf          *amf.AMF // Reference to AMF for registration
 }
 
 func (g *GNodeB) ConnectUE(u *ue.UE) error {
@@ -36,14 +34,6 @@ func (g *GNodeB) ConnectUE(u *ue.UE) error {
 	u.State = ue.Connected
 	g.ConnectedUEs[u.IMSI] = u
 
-	// Try to register with AMF (core network)
-	if err := g.amf.RegisterUE(u.IMSI, g.ID); err != nil {
-		// Registration failed - rollback the radio connection
-		delete(g.ConnectedUEs, u.IMSI)
-		u.State = ue.Disconnected
-		return fmt.Errorf("AMF registration failed: %w", err)
-	}
-
 	return nil
 }
 
@@ -56,7 +46,7 @@ func (g *GNodeB) Disconnect(u *ue.UE) error {
 	return nil
 }
 
-func NewGNodeB(MaxCap int, amf *amf.AMF) (*GNodeB, error) {
+func NewGNodeB(x, y, rangeVal float64, MaxCap int) (*GNodeB, error) {
 	// Get the current ID and increment for next gNodeB
 	id := nextGNodeBID
 	nextGNodeBID++
@@ -81,11 +71,20 @@ func NewGNodeB(MaxCap int, amf *amf.AMF) (*GNodeB, error) {
 		return nil, fmt.Errorf("error reading allowed IMSIs: %w", err)
 	}
 
-	return &GNodeB{
+	newGnodeB := &GNodeB{
 		ID:           id,
+		X:            x,
+		Y:            y,
+		Range:        rangeVal,
 		MaxCap:       MaxCap,
 		AllowedIMSIs: allowedIMSIs,
 		ConnectedUEs: make(map[string]*ue.UE),
-		amf:          amf,
-	}, nil
+	}
+
+	return newGnodeB, nil
 }
+
+//   1. *UE in a type (like func NewUE() *UE) = "pointer to UE"   - * =
+// "I want a pointer to..."
+//	2. &UE{...} when creating = "give me the address of this new UE" - & =
+// "here's the address of...

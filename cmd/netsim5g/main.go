@@ -28,95 +28,94 @@ func main() {
 	smfInstance := smf.NewSMF(udmInstance)
 	fmt.Println("✓ SMF initialized")
 
-	// Step 4: Create gNodeB (needs AMF)
-	gnb, err := ran.NewGNodeB(3, amfInstance)
+	// Step 4: Create 2 gNodeBs at different locations
+	gnb1, err := ran.NewGNodeB(100, 100, 50, 3) // gNodeB-1 at (100,100) with 50m range
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("✓ gNodeB-%d initialized\n", gnb.ID)
+	amfInstance.RegisterGNodeB(gnb1)
+	fmt.Printf("✓ gNodeB-%d initialized at (%.0f, %.0f) with %.0fm range\n", gnb1.ID, gnb1.X, gnb1.Y, gnb1.Range)
 
-	fmt.Println("\n=== Testing Full Flow: Connect → Register → Establish Session ===")
+	gnb2, err := ran.NewGNodeB(200, 200, 50, 3) // gNodeB-2 at (200,200) with 50m range
+	if err != nil {
+		panic(err)
+	}
+	amfInstance.RegisterGNodeB(gnb2)
+	fmt.Printf("✓ gNodeB-%d initialized at (%.0f, %.0f) with %.0fm range\n", gnb2.ID, gnb2.X, gnb2.Y, gnb2.Range)
 
-	// Create UEs with different subscription plans
-	ue1 := ue.NewUE("123456789012345") // Max 100 Mbps
-	ue2 := ue.NewUE("987654321098765") // Max 50 Mbps
+	fmt.Println("\n=== Testing Handover: UE Moves Between gNodeBs ===")
 
-	// ==================== UE1 Flow ====================
-	fmt.Println("\n[UE1 - High-tier subscriber (100 Mbps max)]")
+	// Create UE near gNodeB-1
+	ue1 := ue.NewUE("123456789012345", 110, 110) // Close to gNodeB-1 at (100,100)
+	fmt.Printf("\n[UE1] Created at position (%.0f, %.0f)\n", ue1.X, ue1.Y)
 
-	// Step 1: Connect to gNodeB and register with AMF
-	fmt.Println("  Step 1: Connecting to gNodeB...")
-	if err := gnb.ConnectUE(ue1); err != nil {
-		fmt.Println("    ❌ Failed:", err)
+	// Step 1: Connect to gNodeB-1
+	fmt.Println("\n--- Step 1: Initial Connection ---")
+	if err := gnb1.ConnectUE(ue1); err != nil {
+		fmt.Println("❌ Connection failed:", err)
 		return
 	}
-	fmt.Printf("    ✓ Connected! Radio state: %s\n", ue1.State)
-	fmt.Printf("    ✓ Registered with AMF\n")
+	// Register with AMF after radio connection
+	if err := amfInstance.RegisterUE(ue1.IMSI, gnb1.ID); err != nil {
+		fmt.Println("❌ AMF registration failed:", err)
+		return
+	}
+	fmt.Printf("✓ UE1 connected to gNodeB-%d\n", gnb1.ID)
+	fmt.Printf("✓ AMF registration: gNodeB-%d\n", amfInstance.RegisteredUEs[ue1.IMSI].GNodeBID)
 
 	// Step 2: Establish VoIP session
-	fmt.Println("  Step 2: Establishing VoIP session...")
+	fmt.Println("\n--- Step 2: Establish VoIP Session ---")
 	voipSession, err := smfInstance.EstablishSession(ue1, smf.VoIP)
 	if err != nil {
-		fmt.Println("    ❌ Failed:", err)
-	} else {
-		fmt.Printf("    ✓ Session %d established: %s\n", voipSession.SessionID, voipSession.SessionType)
-		fmt.Printf("    ✓ QoS: %d Mbps, %dms latency, Priority %d\n",
-			voipSession.QoS.MaxBitRate, voipSession.QoS.Latency, voipSession.QoS.Priority)
-	}
-
-	// Step 3: Establish Video session (multiple sessions!)
-	fmt.Println("  Step 3: Establishing Video session...")
-	videoSession, err := smfInstance.EstablishSession(ue1, smf.VideoStreaming)
-	if err != nil {
-		fmt.Println("    ❌ Failed:", err)
-	} else {
-		fmt.Printf("    ✓ Session %d established: %s\n", videoSession.SessionID, videoSession.SessionType)
-		fmt.Printf("    ✓ QoS: %d Mbps, %dms latency, Priority %d\n",
-			videoSession.QoS.MaxBitRate, videoSession.QoS.Latency, videoSession.QoS.Priority)
-	}
-
-	// ==================== UE2 Flow ====================
-	fmt.Println("\n[UE2 - Mid-tier subscriber (50 Mbps max)]")
-
-	// Step 1: Connect and register
-	fmt.Println("  Step 1: Connecting to gNodeB...")
-	if err := gnb.ConnectUE(ue2); err != nil {
-		fmt.Println("    ❌ Failed:", err)
+		fmt.Println("❌ Session failed:", err)
 		return
 	}
-	fmt.Printf("    ✓ Connected! Radio state: %s\n", ue2.State)
+	fmt.Printf("✓ Session %d established: VoIP (1 Mbps, 10ms latency)\n", voipSession.SessionID)
 
-	// Step 2: Try to establish Video session (50 Mbps needed, has 50 Mbps max - should work!)
-	fmt.Println("  Step 2: Establishing Video session (needs 50 Mbps)...")
-	videoSession2, err := smfInstance.EstablishSession(ue2, smf.VideoStreaming)
-	if err != nil {
-		fmt.Println("    ❌ Failed:", err)
-	} else {
-		fmt.Printf("    ✓ Session %d established: %s\n", videoSession2.SessionID, videoSession2.SessionType)
-		fmt.Printf("    ✓ QoS: %d Mbps, %dms latency, Priority %d\n",
-			videoSession2.QoS.MaxBitRate, videoSession2.QoS.Latency, videoSession2.QoS.Priority)
+	// Step 3: UE moves closer to gNodeB-2
+	fmt.Println("\n--- Step 3: UE Moves Towards gNodeB-2 ---")
+	fmt.Println("  Moving UE1 from (110, 110) → (180, 180)...")
+	if err := amfInstance.MoveUE(ue1, 180, 180); err != nil {
+		fmt.Println("❌ Move failed:", err)
+		return
 	}
+	fmt.Printf("✓ UE1 moved to (%.0f, %.0f)\n", ue1.X, ue1.Y)
+	fmt.Printf("✓ Handover completed! Now connected to gNodeB-%d\n", amfInstance.RegisteredUEs[ue1.IMSI].GNodeBID)
+	fmt.Printf("✓ VoIP session still active: Session %d\n", voipSession.SessionID)
 
-	// Step 3: Try Web browsing (would need total 75 Mbps - should FAIL!)
-	fmt.Println("  Step 3: Establishing Web session (would need 75 Mbps total)...")
-	webSession, err := smfInstance.EstablishSession(ue2, smf.WebBrowsing)
-	if err != nil {
-		fmt.Println("    ❌ Failed:", err)
-	} else {
-		fmt.Printf("    ✓ Session %d established: %s\n", webSession.SessionID, webSession.SessionType)
+	// Step 4: UE moves even further (only in range of gNodeB-2)
+	fmt.Println("\n--- Step 4: UE Continues Moving ---")
+	fmt.Println("  Moving UE1 from (180, 180) → (210, 210)...")
+	if err := amfInstance.MoveUE(ue1, 210, 210); err != nil {
+		fmt.Println("❌ Move failed:", err)
+		return
 	}
+	fmt.Printf("✓ UE1 moved to (%.0f, %.0f)\n", ue1.X, ue1.Y)
+	fmt.Printf("✓ Still connected to gNodeB-%d\n", amfInstance.RegisteredUEs[ue1.IMSI].GNodeBID)
 
-	// ==================== Summary ====================
-	fmt.Println("\n=== Network Status Summary ===")
+	// Step 5: UE moves out of all range
+	fmt.Println("\n--- Step 5: UE Moves Out of Range ---")
+	fmt.Println("  Moving UE1 from (210, 210) → (500, 500)...")
+	if err := amfInstance.MoveUE(ue1, 500, 500); err != nil {
+		fmt.Println("❌ Expected error:", err)
+	} else {
+		fmt.Println("✓ UE moved successfully")
+	}
+	fmt.Printf("  UE1 final state: %s\n", ue1.State)
 
+	// Final Summary
+	fmt.Println("\n=== Final Network Status ===")
 	fmt.Printf("\nAMF Registered UEs: %d\n", len(amfInstance.RegisteredUEs))
 	for imsi, regUE := range amfInstance.RegisteredUEs {
 		fmt.Printf("  - IMSI: %s, gNodeB: %d\n", imsi, regUE.GNodeBID)
 	}
 
+	fmt.Printf("\ngNodeB-1 Connected UEs: %d\n", len(gnb1.ConnectedUEs))
+	fmt.Printf("gNodeB-2 Connected UEs: %d\n", len(gnb2.ConnectedUEs))
+
 	fmt.Printf("\nSMF Active Sessions: %d\n", len(smfInstance.Sessions))
 	for id, session := range smfInstance.Sessions {
-		fmt.Printf("  - Session %d: UE %s, Type: %s, Rate: %d Mbps, State: %s\n",
-			id, session.UE.IMSI, session.SessionType, session.QoS.MaxBitRate, session.State)
+		fmt.Printf("  - Session %d: UE %s, Type: %s, State: %s\n",
+			id, session.UE.IMSI, session.SessionType, session.State)
 	}
 }
