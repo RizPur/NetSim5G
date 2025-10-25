@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 
+	"github.com/rizpur/NetSim5G/internal/api"
 	"github.com/rizpur/NetSim5G/internal/core/amf"
 	"github.com/rizpur/NetSim5G/internal/core/smf"
 	"github.com/rizpur/NetSim5G/internal/core/udm"
@@ -28,12 +30,17 @@ func main() {
 	smfInstance := smf.NewSMF(udmInstance)
 	fmt.Println("✓ SMF initialized")
 
+	// Track all UEs and gNodeBs for API
+	allUEs := make(map[string]*ue.UE)
+	gNodeBs := make(map[int]*ran.GNodeB)
+
 	// Step 4: Create 2 gNodeBs at different locations
 	gnb1, err := ran.NewGNodeB(100, 100, 50, 3) // gNodeB-1 at (100,100) with 50m range
 	if err != nil {
 		panic(err)
 	}
 	amfInstance.RegisterGNodeB(gnb1)
+	gNodeBs[gnb1.ID] = gnb1
 	fmt.Printf("✓ gNodeB-%d initialized at (%.0f, %.0f) with %.0fm range\n", gnb1.ID, gnb1.X, gnb1.Y, gnb1.Range)
 
 	gnb2, err := ran.NewGNodeB(200, 200, 50, 3) // gNodeB-2 at (200,200) with 50m range
@@ -41,12 +48,14 @@ func main() {
 		panic(err)
 	}
 	amfInstance.RegisterGNodeB(gnb2)
+	gNodeBs[gnb2.ID] = gnb2
 	fmt.Printf("✓ gNodeB-%d initialized at (%.0f, %.0f) with %.0fm range\n", gnb2.ID, gnb2.X, gnb2.Y, gnb2.Range)
 
 	fmt.Println("\n=== Testing Handover: UE Moves Between gNodeBs ===")
 
 	// Create UE near gNodeB-1
 	ue1 := ue.NewUE("123456789012345", 110, 110) // Close to gNodeB-1 at (100,100)
+	allUEs[ue1.IMSI] = ue1
 	fmt.Printf("\n[UE1] Created at position (%.0f, %.0f)\n", ue1.X, ue1.Y)
 
 	// Step 1: Connect to gNodeB-1
@@ -118,4 +127,13 @@ func main() {
 		fmt.Printf("  - Session %d: UE %s, Type: %s, State: %s\n",
 			id, session.UE.IMSI, session.SessionType, session.State)
 	}
+
+	// Start API server
+	handler := api.NewHandler(amfInstance, smfInstance, udmInstance, gNodeBs, allUEs)
+	handler.RegisterRoutes()
+
+	fmt.Println("\n=== Starting API Server ===")
+	fmt.Println("API running on http://localhost:8080")
+	fmt.Println("Try: curl http://localhost:8080/api/ues")
+	http.ListenAndServe(":8080", nil)
 }
